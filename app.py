@@ -212,9 +212,20 @@ def cancel_booking():
     booking_id = request.form.get('booking_id')
     with sqlite3.connect("booking.db") as conn:
         cursor = conn.cursor()
+        cursor.execute("SELECT theater, screen FROM bookings WHERE booking_id = ? AND canceled = 0", (booking_id,))
+        booking = cursor.fetchone()
+
+        if not booking:
+            flash("Booking not found or already canceled.")
+            return redirect(url_for("view_previous_bookings"))
+
+        theater, screen = booking
+
+        # Proceed with cancellation
         cursor.execute("UPDATE bookings SET canceled = 1 WHERE booking_id = ?", (booking_id,))
-        cursor.execute('UPDATE seats SET booked_seats = booked_seats - 1 WHERE theater = ? AND screen = ?', (session['theater'], session['screen']))
+        cursor.execute("UPDATE seats SET booked_seats = booked_seats - 1 WHERE theater = ? AND screen = ?", (theater, screen))
         conn.commit()
+
     flash("Booking canceled successfully!")
     return redirect(url_for("view_previous_bookings"))
 
@@ -227,9 +238,26 @@ def view_previous_bookings():
         rows = cursor.fetchall()
         bookings = []
         now = datetime.datetime.now()
+
+        # <!-- DEBUG: Current Time: {now} -->
+
+        # Process each booking
         for row in rows:
-            booking_time = datetime.datetime.strptime(row[6], '%Y-%m-%d %H:%M:%S.%f')
-            cancelable = (booking_time - now).total_seconds() > 30 * 60
+            movie = row[2]  # Movie name from the booking record
+            booking_id = row[8]
+            try:
+                movie_data = theater_data.get('movies', {}).get(movie, {})
+                show_time_str = movie_data.get('date_time')
+                if not show_time_str:
+                    print(f"WARNING: No show time found for movie {movie} (ID: {booking_id})")
+                    continue
+                show_time = datetime.datetime.strptime(show_time_str, '%m/%d/%Y, %I:%M:%S %p')
+                cancelable = now < show_time - datetime.timedelta(minutes=30)
+                # <!-- DEBUG: Booking ID: {booking_id}, Show Time: {show_time}, Cancelable: {cancelable} -->
+            except (KeyError, ValueError) as e:
+                print(f"ERROR: Issue with booking ID {booking_id}: {e}")
+                continue
+
             bookings.append({
                 "id": row[0],
                 "theater": row[1],
@@ -239,10 +267,13 @@ def view_previous_bookings():
                 "total_price": row[5],
                 "booking_time": row[6],
                 "seat_number": row[7],
-                "booking_id": row[8],
+                "booking_id": booking_id,
+                "show_time": show_time.strftime('%Y-%m-%d %I:%M %p'),
                 "cancelable": cancelable
             })
+
     return render_template("previousBookings.html", previous_bookings=bookings)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
