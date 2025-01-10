@@ -125,16 +125,23 @@ The application uses SQLite for managing data. Below is a simplified schema:
    - `id`: Primary key
    - `theater`: Name of the theater
    - `screen`: Screen type (Gold, Max, General)
-   - `total_seats`: Total seats available
-   - `booked_seats`: Total booked seats
+   - `seats`: Total seats available
 
-3. **Waitlist**
+3. **Bookings**
+
    - `id`: Primary key
-   - `theater`: Name of the theater
-   - `movie`: Name of the movie
-   - `screen`: Name of the screen
+   - `user_name`: Name of the user
    - `screen_id`: Foreign key linking to a screen
-   - `join_time`: Time of booking
+   - `movie_name`: Name of the movie
+   - `show_time`: Showtime of the movie
+   - `food_items`: List of food items ordered (if any)
+   - `status`: Booking status (Confirmed/Cancelled)
+
+4. **Waitlist**
+   - `id`: Primary key
+   - `screen_id`: Foreign key linking to a screen
+   - `user_name`: Name of the user
+   - `position`: Queue position
 
 ---
 
